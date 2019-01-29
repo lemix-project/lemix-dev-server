@@ -1,2 +1,2 @@
-# lemix-module-manager
-lemix-module-manager
+# lemix-dev-server
+lemix-dev-server
