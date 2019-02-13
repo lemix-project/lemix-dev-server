@@ -1,13 +1,17 @@
 let connect = require('./connect')
 let getSql = require('./getSql')
 let guid = require('./getUUID')
-let getIPAdress = require('./getIPAdress')
-let port = require('./getPort')
+let getIPAddress = require('./getIPAddress')
+let getPort = require('./getPort')
+let db = require('./db')
+let getTime = require('./getTime')
 
 module.exports = {
     connect,
     getSql,
     guid,
-    getIPAdress,
-    port
+    getIPAddress,
+    getPort,
+    db,
+    getTime
 }

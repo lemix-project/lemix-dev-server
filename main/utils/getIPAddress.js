@@ -1,7 +1,7 @@
 /**获取本机ip**/
 let interfaces = require('os').networkInterfaces();
 
-let getIPAdress = () => {
+let getIPAddress = () => {
     for (let devName in interfaces) {
         let iface = interfaces[devName];
         for (let i = 0; i < iface.length; i++) {
@@ -13,5 +13,5 @@ let getIPAdress = () => {
     }
 }
 
-module.exports = getIPAdress
+module.exports = getIPAddress
 

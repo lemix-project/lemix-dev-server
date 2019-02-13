@@ -1,91 +1,144 @@
 const express = require('express')
+const fs = require('fs')
 const multer = require('multer')
-const {connect, getSql, guid} = require('../utils')
-const map = require('../maps/module')
-const lemixConfig = require('../config').lemix
-const errorObj = require('../error')
+const {guid, db, getPort, getIPAddress} = require('../utils')
+const moduleSql = require('../maps/module')
 const upload = multer();
 const router = express.Router()
+const ipAddress = getIPAddress();
+const port = getPort()
+const _TYPE = 'mix_module'
+const _basePath = 'base'
+const _icon = 'icon'
+let _icon_buffer = null
+
+const _getIconPath = (mm_identifier) => {
+    return _basePath + '/' + _icon + '/' + mm_identifier
+}
+
+const _writeFiles = ({mm_identifier, iconBuffer}) => {
+    if (mm_identifier) {
+        let iconPath = _getIconPath(mm_identifier)
+        fs.writeFileSync(iconPath, iconBuffer)
+    }
+}
+
+const _readFile = () => {
+    return fs.readFileSync('main/imgs/defaultIcon.png')
+}
+
+const _removeFile = (identifiers) => {
+    for (let identifier of identifiers) {
+        let filePath = _getIconPath(identifier)
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+    }
+}
 
 // 查询列表
 router.get('/module', (req, res, next) => {
-    let data = req.query,
-        sql = data.ns_identifier
-            ? map.GET + ` WHERE P2.ns_identifier = '${data.ns_identifier}'`
-            : map.GET,
-        callback = (err, rows) => {
-            res.send(rows)
-        };
-    connect(lemixConfig, sql, callback, next)
+    let results = {}, total,
+        size = parseInt(req.query.size || 10),
+        current = parseInt(req.query.current || 1),
+        start = (current - 1) * size,
+        ns_identifier = req.query.ns_identifier
+
+    db.query(moduleSql.GET_LIST, [ns_identifier, start, size], next, _TYPE, function (err, rows) {
+        for (let row of rows) {
+            total = row.total
+            row.icon_path = 'http://' + ipAddress + ':' + port + '/lemix/' + _basePath + '/icon/' + row['mm_identifier']
+            delete row.total
+        }
+        results.moduleList = rows;
+        if (rows.length > 0) {
+            results.common = {
+                'size': size,
+                'current': current,
+                'count': Math.ceil(total / size),
+                'total': total
+            }
+        }
+        res.send(results);
+    });
 })
 // 查询明细
 router.get('/module/*', (req, res, next) => {
-    let urlArray = req.url.split('/'),
-        mm_identifier = urlArray[2],
-        sql = map.GET + ` WHERE P1.mm_identifier = '${mm_identifier}'`,
-        callback = (err, rows) => {
-            res.send(rows[0])
-        };
-    connect(lemixConfig, sql, callback, next)
+    let results = {},
+        urlArray = req.url.split('/'),
+        mm_identifier = urlArray[2]
+    db.query(moduleSql.GET_DETAIL, [mm_identifier], next, _TYPE, function (err, rows) {
+        results = rows;
+        console.log('results: ' + results.str);
+        res.send(results[0]);
+    });
 })
 // 新增
-router.post('/module', upload.array(), (req, res, next) => {
+router.post('/module', upload.any(), (req, res, next) => {
+    console.log(req.body.mm_identifier);
+    // res.end()
     let data = req.body,
-        params = {
-            "#ns_identifier": data.ns_identifier,
-            "#mm_identifier": guid(),
-            "#mm_name": data.mm_name,
-            "#bundle_identifier": data.bundle_identifier,
-            "#mm_description": data.mm_description,
-            "#create_time": Number(new Date())
-        },
-        sql = getSql(map.POST, params),
-        callback = (err, rows) => {
-            let response = {
-                "message": "新增成功"
-            }
-            res.send(JSON.stringify(response))
+        values = new Array(),
+        mm_identifier = data.mm_identifier === '' ? guid() : data.mm_identifier,
+        iconBuffer = _icon_buffer === null
+            ? _readFile()
+            : _icon_buffer[data.mm_identifier]
+
+    values[0] = data.ns_identifier
+    values[1] = mm_identifier
+    values[2] = data.mm_name
+    values[3] = data.bundle_identifier
+    values[4] = data.mm_description
+    values[5] = Number(new Date())
+    db.query(moduleSql.POST, values, next, _TYPE, function () {
+        let response = {
+            'message': '创建成功'
         }
-    connect(lemixConfig, sql, callback, next)
+        _icon_buffer = null
+        _writeFiles({mm_identifier, iconBuffer})
+        res.send(response)
+    });
 })
 // 修改
 router.put('/module', upload.array(), (req, res, next) => {
     let data = req.body,
-        params = {
-            "#mm_identifier": data.mm_identifier,
-            "#mm_name": data.mm_name,
-            "#mm_description": data.mm_description,
-            "#bundle_identifier": data.bundle_identifier
-        },
-        sql = getSql(map.PUT, params),
-        callback = (err, rows) => {
-            let message = rows.changedRows === 1
-                ? "更新成功"
-                : "没有数据更新",
-                response = {
-                    "message": message
-                }
-            res.send(JSON.stringify(response))
+        values = new Array()
+    values[0] = data.mm_name
+    values[1] = data.mm_description
+    values[2] = data.bundle_identifier
+    values[3] = data.mm_identifier
+
+    db.query(moduleSql.PUT, values, next, _TYPE, function () {
+        let response = {
+            'message': '修改成功'
         }
-    connect(lemixConfig, sql, callback, next)
+        res.send(response)
+    });
 })
 // 删除
 router.delete('/module', upload.array(), (req, res, next) => {
-    let data = req.body;
-    for (let key in data) {
-        let mm_identifier = data[key].mm_identifier,
-            params = {
-                "#mm_identifier": mm_identifier
-            },
-            sql = getSql(map.DELETE, params),
-            callback = (err) => {
-                let response = {
-                    "message": "删除成功"
-                }
-                res.send(JSON.stringify(response))
-            }
-        connect(lemixConfig, sql, callback, next)
+    let data = req.body, values = new Array();
+    for (let obj of data) {
+        values.push(obj.mm_identifier)
     }
+    db.query(moduleSql.DELETE, [values], next, _TYPE, function () {
+        let response = {
+            'message': '删除成功'
+        }
+        _removeFile(values)
+        res.send(response)
+    });
+})
+// 上传图标
+router.post('/module/icon', upload.any(), (req, res, next) => {
+    let icon_identifier = guid()
+    _icon_buffer = {
+        [icon_identifier]: req.files[0].buffer
+    }
+    let response = {
+        'mm_identifier': icon_identifier
+    }
+    res.send(response)
 })
 
 module.exports = router

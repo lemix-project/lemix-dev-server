@@ -6,8 +6,9 @@ const moduleVersion = require('./routes/moduleVersion')
 const moduleIO = require('./routes/moduleIO')
 const logErrors = require('./error/logErrors')
 const errorHandler = require('./error/errorHandler')
-const {port} = require('./utils')
+const {getPort} = require('./utils')
 const app = express()
+const port = getPort()
 
 //设置允许跨域访问该服务
 app.all('*', (req, res, next) => {

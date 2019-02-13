@@ -1,6 +1,6 @@
 // 连接池
 let connection = {};
-connection.demo = {
+connection.mysql = {
     host: "localhost",
     user: "root",
     password: "123456",

@@ -1,7 +1,7 @@
 let process = require('process');
 const _default_port = 8082;
 
-let port = (() => {
+let getPort = () => {
     if (typeof (process.argv[2]) !== 'undefined') { // 如果输入了端口号，则提取出来
         if (isNaN(process.argv[2])) { // 如果端口号不为数字，提示格式错误
             throw 'Please write a correct port number.'
@@ -11,6 +11,7 @@ let port = (() => {
     } else { // 如果未输入端口号，则使用下面定义的默认端口
         return _default_port
     }
-})()
+}
 
-module.exports = port
+module.exports = getPort
+
