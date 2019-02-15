@@ -3,12 +3,16 @@ const multer = require('multer')
 const fs = require('fs')
 const {guid, db} = require('../utils')
 const map = require('../maps/moduleVersion')
+const Error = require('../error')
 const upload = multer();
 const router = express.Router()
 const _basePath = 'base'
 const _package = 'package'
 const _icon = 'icon'
 const _TYPE = 'upload'
+const _ER_BAD_PARAMS = 'ER_BAD_PARAMS'
+const _COMMON = 'common'
+const _res_er_bad_params = Error[_COMMON][_ER_BAD_PARAMS]
 
 
 const _getIconPath = (mm_identifier) => {
@@ -79,12 +83,12 @@ router.get('/download', (req, res) => {
 router.put('/upload', upload.any(), (req, res, next) => {
     let data = req.body,
         values = new Array(),
-        config = {},
         mmv_identifier = guid(),
         version_tag,
         packageBuffer,
         iconBuffer
-    if (req.files) {
+    // 获取Buffer
+    if (req.files) {    // form-data 形式上传
         for (let file of req.files) {
             switch (file.fieldname) {
                 case 'package':
@@ -95,30 +99,35 @@ router.put('/upload', upload.any(), (req, res, next) => {
                     break
             }
         }
-    } else {
+    } else if (data.package) {  // Json 形式上传
         packageBuffer = new Buffer(data.package)
         iconBuffer = data.icon ? new Buffer(data.icon) : undefined
     }
-    if (data.config) {
-        config = typeof data.config === 'string'
-            ? JSON.parse(data.config)
-            : data.config
-        version_tag = _removeSpace(config.version)
-        values[0] = mmv_identifier
-        values[1] = config.description
-        values[2] = config.entrance
-        values[3] = config.package_time
-        values[4] = config.version
-        values[5] = config.identifier + '^' + version_tag
-        values[6] = config.author
-        values[7] = config.identifier
-        values[8] = config.description
-        values[9] = config.entrance
-        values[10] = config.package_time
-        values[11] = config.author
+    if (!packageBuffer) {
+        next(_res_er_bad_params)
+        return false
     }
+    // 校验配置信息
+    if (!data.identifier || !data.version || !data.author || !data.entrance || !data.package_time) {
+        next(_res_er_bad_params)
+        return false
+    }
+    version_tag = _removeSpace(data.version)
+    values[0] = mmv_identifier
+    values[1] = data.description ? data.description : ''
+    values[2] = data.entrance
+    values[3] = data.package_time
+    values[4] = version_tag
+    values[5] = data.identifier + '^' + version_tag
+    values[6] = data.author
+    values[7] = data.identifier
+    values[8] = data.description ? data.description : ''
+    values[9] = data.entrance
+    values[10] = data.package_time
+    values[11] = data.author
+
     db.query(map.UPLOAD, values, next, _TYPE, function () {
-        let value = config.identifier + '^' + version_tag
+        let value = data.identifier + '^' + version_tag
         db.query(map.GET_ID, [value], next, _TYPE, function (err, rows) {
             /**
              * 更新版本时，需要替换 icon 和 package
@@ -153,59 +162,6 @@ router.put('/upload', upload.any(), (req, res, next) => {
             }
         })
     })
-    // let data = req.body,
-    //     mmv_identifier = guid(),
-    //     config = data.config,
-    //     version_tag = _removeSpace(config.version),
-    //     param = {
-    //         "#mmv_identifier": mmv_identifier,
-    //         "#bundle_identifier": config.identifier,
-    //         "#description": config.description,
-    //         "#entrance": config.entrance,
-    //         "#package_time": config.package_time,
-    //         "#version_tag": version_tag,
-    //         "#single_flag": config.identifier + '^' + version_tag,
-    //         "#author": config.author
-    //     },
-    //     sql = getSql(map.UPLOAD, param),
-    //     callback = (err, rows) => {
-    //         if (_isUpdateVersion(rows)) {
-    //             /**
-    //              * 更新版本时，需要替换 icon 和 package
-    //              */
-    //             let param = {
-    //                     "#single_flag": config.identifier + '^' + version_tag
-    //                 },
-    //                 sql = getSql(map.GET_ID, param),
-    //                 getID = (err, rows) => {
-    //                     let mmv_identifier = rows[0].mmv_identifier,
-    //                         response = {
-    //                             "mmv_identifier": mmv_identifier,
-    //                             "icon_path": _getIconPath(mmv_identifier)
-    //                         }, param = {
-    //                             "mmv_identifier": mmv_identifier,
-    //                             "packageBuffer": new Buffer(data.package.data),
-    //                             "iconBuffer": new Buffer(data.icon.data)
-    //                         }
-    //                     _unlinkFiles(mmv_identifier)
-    //                     _writeFiles(param)
-    //                     res.send(JSON.stringify(response))
-    //                 }
-    //             connect(lemixConfig, sql, getID, next)
-    //         } else {
-    //             let response = {
-    //                 "mmv_identifier": mmv_identifier,
-    //                 "icon_path": _getIconPath(mmv_identifier)
-    //             }, param = {
-    //                 "mmv_identifier": mmv_identifier,
-    //                 "packageBuffer": new Buffer(data.package.data),
-    //                 "iconBuffer": new Buffer(data.icon.data)
-    //             }
-    //             _writeFiles(param)
-    //             res.send(JSON.stringify(response))
-    //         }
-    //     }
-    // connect(lemixConfig, sql, callback, next)
 })
 // 获取zip包下载地址
 router.get('/getDownloadUrl', (req, res) => {

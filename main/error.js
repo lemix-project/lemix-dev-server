@@ -55,6 +55,10 @@ module.exports = {
         "SERVER_ERROR":{
             "code":"COMMON_SERVER_INTERNAL_ERROR",
             "message":"服务器内部错误，请联系系统管理员"
+        },
+        "ER_BAD_PARAMS":{
+            "code":"ER_BAD_PARAMS",
+            "message":"参数不合法，请确认传参"
         }
     }
 }

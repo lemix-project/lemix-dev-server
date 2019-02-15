@@ -3,6 +3,7 @@ const fs = require('fs')
 const multer = require('multer')
 const {guid, db, getPort, getIPAddress} = require('../utils')
 const moduleSql = require('../maps/module')
+const Error = require('../error')
 const upload = multer();
 const router = express.Router()
 const ipAddress = getIPAddress();
@@ -11,6 +12,9 @@ const _TYPE = 'mix_module'
 const _basePath = 'base'
 const _icon = 'icon'
 let _icon_buffer = null
+const _ER_BAD_PARAMS = 'ER_BAD_PARAMS'
+const _COMMON = 'common'
+const _res_er_bad_params = Error[_COMMON][_ER_BAD_PARAMS]
 
 const _getIconPath = (mm_identifier) => {
     return _basePath + '/' + _icon + '/' + mm_identifier
@@ -75,10 +79,12 @@ router.get('/module/*', (req, res, next) => {
 })
 // 新增
 router.post('/module', upload.any(), (req, res, next) => {
-    console.log(req.body.mm_identifier);
-    // res.end()
-    let data = req.body,
-        values = new Array(),
+    let data = req.body
+    if (!data.ns_identifier || !data.mm_name || !data.bundle_identifier) {
+        next(_res_er_bad_params)
+        return false
+    }
+    let values = new Array(),
         mm_identifier = data.mm_identifier === '' ? guid() : data.mm_identifier,
         iconBuffer = _icon_buffer === null
             ? _readFile()
@@ -88,7 +94,7 @@ router.post('/module', upload.any(), (req, res, next) => {
     values[1] = mm_identifier
     values[2] = data.mm_name
     values[3] = data.bundle_identifier
-    values[4] = data.mm_description
+    values[4] = data.mm_description ? data.mm_description : ''
     values[5] = Number(new Date())
     db.query(moduleSql.POST, values, next, _TYPE, function () {
         let response = {
@@ -101,8 +107,12 @@ router.post('/module', upload.any(), (req, res, next) => {
 })
 // 修改
 router.put('/module', upload.array(), (req, res, next) => {
-    let data = req.body,
-        values = new Array()
+    let data = req.body
+    if (!data.mm_name || !data.bundle_identifier || !data.mm_description || !data.mm_identifier) {
+        next(_res_er_bad_params)
+        return false
+    }
+    let values = new Array()
     values[0] = data.mm_name
     values[1] = data.mm_description
     values[2] = data.bundle_identifier
@@ -118,7 +128,15 @@ router.put('/module', upload.array(), (req, res, next) => {
 // 删除
 router.delete('/module', upload.array(), (req, res, next) => {
     let data = req.body, values = new Array();
+    if (!Array.isArray(data)) {
+        next(_res_er_bad_params)
+        return false
+    }
     for (let obj of data) {
+        if (!obj.mm_identifier) {
+            next(_res_er_bad_params)
+            return false
+        }
         values.push(obj.mm_identifier)
     }
     db.query(moduleSql.DELETE, [values], next, _TYPE, function () {

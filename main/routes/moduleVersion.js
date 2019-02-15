@@ -3,12 +3,16 @@ const multer = require('multer')
 const fs = require('fs')
 const {guid, getIPAddress, getPort, db} = require('../utils')
 const versionSql = require('../maps/moduleVersion')
+const Error = require('../error')
 const upload = multer();
 const router = express.Router()
 const ipAddress = getIPAddress();
 const port = getPort()
 const _basePath = 'base'
 const _TYPE = 'module_version'
+const _ER_BAD_PARAMS = 'ER_BAD_PARAMS'
+const _COMMON = 'common'
+const _res_er_bad_params = Error[_COMMON][_ER_BAD_PARAMS]
 
 const _getPackagePath = (mmv_identifier) => {
     return _basePath + '/package/' + mmv_identifier + '.zip'
@@ -113,10 +117,15 @@ router.get('/moduleVersion/*', (req, res, next) => {
 })
 // 新增
 router.post('/moduleVersion', upload.array(), (req, res, next) => {
-    let data = req.body, values = new Array()
+    let data = req.body
+    if (!data.mm_identifier || !data.config || !data.config.version || !data.config.author || !data.config.package_time || !data.config.entrance) {
+        next(_res_er_bad_params)
+        return false
+    }
+    let values = new Array()
     values[0] = data.mm_identifier
     values[1] = guid()
-    values[2] = data.config.description
+    values[2] = data.config.description ? data.config.description : ''
     values[3] = data.config.entrance
     values[4] = data.config.package_time
     values[5] = data.config.version
@@ -132,7 +141,12 @@ router.post('/moduleVersion', upload.array(), (req, res, next) => {
 })
 // 修改
 router.put('/moduleVersion', upload.array(), (req, res, next) => {
-    let data = req.body, values = new Array()
+    let data = req.body
+    if (!data.pkid || !data.entrance || !data.version || !data.description) {
+        next(_res_er_bad_params)
+        return false
+    }
+    let values = new Array()
     values[0] = data.description
     values[1] = data.entrance
     values[2] = data.version
@@ -151,7 +165,15 @@ router.put('/moduleVersion', upload.array(), (req, res, next) => {
 // 删除
 router.delete('/moduleVersion', upload.array(), (req, res, next) => {
     let data = req.body, values = new Array();
+    if (!Array.isArray(data)) {
+        next(_res_er_bad_params)
+        return false
+    }
     for (let obj of data) {
+        if (!obj.pkid) {
+            next(_res_er_bad_params)
+            return false
+        }
         values.push(obj.pkid)
     }
 
