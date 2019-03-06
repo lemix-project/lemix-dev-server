@@ -39,7 +39,6 @@ router.get('/nameSpace/*', (req, res, next) => {
         ns_identifier = urlArray[2]
     db.query(nameSpaceSql.GET_DETAIL, [ns_identifier], next, _TYPE, function (err, rows) {
         results = rows;
-        console.log("results: " + results.str);
         res.send(results[0]);
     });
 })

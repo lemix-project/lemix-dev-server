@@ -73,7 +73,6 @@ router.get('/module/*', (req, res, next) => {
         mm_identifier = urlArray[2]
     db.query(moduleSql.GET_DETAIL, [mm_identifier], next, _TYPE, function (err, rows) {
         results = rows;
-        console.log('results: ' + results.str);
         res.send(results[0]);
     });
 })
