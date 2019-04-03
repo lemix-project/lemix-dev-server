@@ -1,0 +1,2 @@
+INSERT INTO `mix_module_version` VALUES ('339cd552-765d-50b3-be94-489d61dd694f', '15fb305f-a0eb-c7b0-41b8-77dc6366b8e0', '1550191469003', '0.0.1', '', 'main', 'com.zhongwang.zwt.ext.take_out_food^0.0.1', 'zwt');
+INSERT INTO `mix_module_version` VALUES ('a2757c14-eadf-6915-a415-35f3c182a9e4', 'c495c53c-d206-4e63-3ce0-4bcf2e6a6cee', '1553071112144', '0.0.1', '', 'main', 'com.zhongwang.zwt.ext.attendance^0.0.1', 'zwt-official');
